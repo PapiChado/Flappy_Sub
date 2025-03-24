@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.Serialization;
+
 public class SubmarineManager : MonoBehaviour
 {
     [SerializeField] float fuel = 100f;
@@ -26,11 +28,21 @@ public class SubmarineManager : MonoBehaviour
 
     [SerializeField]
     float speed = 1;
+    
+    [SerializeField]
+    float maxSpeed = 1;
+    
+    [FormerlySerializedAs("Impact")] [SerializeField]
+    Vector3 impact = new Vector3(0,  0.0f, 0);
+    
+    [SerializeField]
+    Vector3 maxImpact = new Vector3(0,  0.4f, 0);
 
     [SerializeField]
     Transform ship;
 
     private bool resetted = false;
+    private bool isOver = false;
 
     void Start()
     {
@@ -43,6 +55,7 @@ public class SubmarineManager : MonoBehaviour
         if (fuel <= 0)
         {
             enabled = false;
+            isOver = true;
         }
         if (Input.GetButtonDown("Jump"))
         {
@@ -69,22 +82,26 @@ public class SubmarineManager : MonoBehaviour
     }
     private void FixedUpdate()
     {
+        if (impact.y > 0)
+        {
+            impact.y += 0.01f * Time.deltaTime;
+        }
         if (_thrust)
         {
             if (forceMode == ForceMode.Impulse)
             {
                 _thrust = false;
                 resetted = true;
-                rb.AddForce(impulseForce, forceMode);
+                rb.AddForce(impulseForce - impact, forceMode);
                 ship.transform.localEulerAngles = new Vector3(maxRotaion,
                 ship.transform.localRotation.eulerAngles.y, ship.transform.localRotation.eulerAngles.z);
             }
             else
             {
-                rb.AddForce(constantForce, forceMode);
+                rb.AddForce(constantForce - impact, forceMode);
             }
         }
-        rb.AddForce(forwardForce, forceMode);
+        rb.AddForce(forwardForce - impact, forceMode);
     }
     private void OnTriggerEnter(Collider other)
     {
@@ -100,8 +117,12 @@ public class SubmarineManager : MonoBehaviour
             Destroy(other.gameObject);
             fuel = Mathf.Clamp(fuel - mineFuelReduction, 0, maxFuel);
             Debug.Log($"Fuel lost: {fuel}");
+            impact += maxImpact;
+            Debug.Log($"Speed: {speed}");
             if (fuel <= 0)
             {
+                isOver = true;
+                RotateOnItself();
                 enabled = false;
             }
         }
@@ -109,7 +130,19 @@ public class SubmarineManager : MonoBehaviour
     }
     private void OnCollisionEnter(Collision other)
     {
+        isOver = true;
         rb.isKinematic = true;
         enabled = false;
+    }
+
+    private void RotateOnItself()
+    {
+        if (isOver)
+        {
+            do
+            {
+                ship.transform.Rotate(0f, 0f, 1);
+            }while (ship.transform.localRotation.eulerAngles.z < 180);
+        }
     }
 }
